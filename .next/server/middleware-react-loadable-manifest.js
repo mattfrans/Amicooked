@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"pages\\\\index.tsx -> ../components/amicooked\":{\"id\":\"pages\\\\index.tsx -> ../components/amicooked\",\"files\":[\"static/chunks/components_amicooked_tsx.js\"]}}"

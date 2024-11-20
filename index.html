@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amicooked</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; }
+        .container { max-width: 800px; margin: auto; padding: 20px; }
+        h1 { text-align: center; color: #333; }
+        textarea { width: 100%; height: 100px; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 8px 16px; margin-right: 5px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .situation { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: white; }
+        .situation-text { font-size: 1.1em; margin-bottom: 15px; }
+        .vote-buttons { margin: 10px 0; }
+        .vote-results { margin: 10px 0; font-size: 0.9em; color: #666; }
+        .comments-section { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+        .comment { margin: 10px 0; padding: 10px; background-color: #f9f9f9; border-radius: 4px; }
+        .comment-form { margin-top: 10px; }
+        .comment-form textarea { height: 60px; }
+        .timestamp { font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Amicooked</h1>
+        <form id="situation-form">
+            <textarea id="situation-text" placeholder="Describe your situation..." required></textarea>
+            <button type="submit">Post Situation</button>
+        </form>
+        <div id="situations"></div>
+    </div>
+    <script>
+        document.getElementById('situation-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const text = document.getElementById('situation-text').value;
+            fetch('/situations', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text })
+            }).then(response => response.json()).then(data => {
+                document.getElementById('situation-text').value = '';
+                loadSituations();
+            });
+        });
+
+        function loadSituations() {
+            fetch('/situations').then(response => response.json()).then(data => {
+                const situationsDiv = document.getElementById('situations');
+                situationsDiv.innerHTML = '';
+                data.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'situation';
+                    div.innerHTML = `
+                        <div class="situation-text">${s.text}</div>
+                        <div class="vote-buttons">
+                            <button onclick="vote(${s.id}, 'cooked')">Cooked!</button>
+                            <button onclick="vote(${s.id}, 'going_to_make_it')">Going to make it!</button>
+                        </div>
+                        <div class="vote-results" id="results-${s.id}"></div>
+                        <div class="comments-section">
+                            <h3>Comments</h3>
+                            <div class="comment-form">
+                                <textarea id="comment-text-${s.id}" placeholder="Add a comment..."></textarea>
+                                <button onclick="addComment(${s.id})">Add Comment</button>
+                            </div>
+                            <div class="comments" id="comments-${s.id}"></div>
+                        </div>
+                    `;
+                    situationsDiv.appendChild(div);
+                    loadResults(s.id);
+                    loadComments(s.id);
+                });
+            });
+        }
+
+        function vote(situationId, voteType) {
+            console.log('Voting:', { situationId, voteType });
+            fetch('/vote', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ situation_id: situationId, vote_type: voteType })
+            }).then(response => {
+                console.log('Vote response:', response);
+                return response.json();
+            }).then(data => {
+                console.log('Vote data:', data);
+                loadResults(situationId);
+            }).catch(error => {
+                console.error('Vote error:', error);
+            });
+        }
+
+        function loadResults(situationId) {
+            console.log('Loading results for situation:', situationId);
+            fetch(`/results/${situationId}`).then(response => {
+                console.log('Results response:', response);
+                return response.json();
+            }).then(data => {
+                console.log('Results data:', data);
+                const resultsDiv = document.getElementById(`results-${situationId}`);
+                resultsDiv.textContent = `Results: ${data.cooked} say "Cooked!" | ${data.going_to_make_it} say "Going to make it!"`;
+            }).catch(error => {
+                console.error('Results error:', error);
+            });
+        }
+
+        function addComment(situationId) {
+            const textArea = document.getElementById(`comment-text-${situationId}`);
+            const text = textArea.value.trim();
+            if (!text) return;
+
+            fetch('/comments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ situation_id: situationId, text: text })
+            }).then(response => response.json()).then(data => {
+                textArea.value = '';
+                loadComments(situationId);
+            }).catch(error => {
+                console.error('Comment error:', error);
+            });
+        }
+
+        function loadComments(situationId) {
+            fetch(`/comments/${situationId}`).then(response => response.json()).then(data => {
+                const commentsDiv = document.getElementById(`comments-${situationId}`);
+                commentsDiv.innerHTML = data.map(comment => `
+                    <div class="comment">
+                        <div>${comment.text}</div>
+                        <div class="timestamp">${new Date(comment.created_at).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            }).catch(error => {
+                console.error('Load comments error:', error);
+            });
+        }
+
+        loadSituations();
+    </script>
+</body>
+</html>
